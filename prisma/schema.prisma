@@ -1,0 +1,484 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUM: NGƯỜI DÙNG ────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  ANALYST
+  VIEWER
+}
+
+enum ProjectRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+// ─── ENUM: DỰ ÁN ─────────────────────────────────────────────────────────────
+
+enum ProjectType {
+  CHUNG_CU
+  DAT_NEN
+  NHA_PHO
+  SHOPHOUSE
+  BIET_THU
+  KHU_DO_THI
+  KHU_CONG_NGHIEP
+  MIXED_USE
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  SELLING
+  HANDED_OVER
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum DocumentType {
+  LEGAL
+  DRAWING
+  PLANNING
+  PRICE_LIST
+  OTHER
+}
+
+// ─── ENUM: KỊCH BẢN ──────────────────────────────────────────────────────────
+
+enum ScenarioType {
+  BASE
+  OPTIMISTIC
+  PESSIMISTIC
+  CUSTOM
+}
+
+// ─── ENUM: TÀI CHÍNH ─────────────────────────────────────────────────────────
+
+enum CostCategory {
+  LAND_CLEARANCE
+  CONSTRUCTION
+  INFRASTRUCTURE
+  PROFESSIONAL_FEES
+  MARKETING
+  MANAGEMENT
+  CONTINGENCY
+  OTHER
+}
+
+enum LoanType {
+  BANK_LOAN
+  BOND
+  EQUITY_PARTNER
+  MEZZANINE
+  OTHER
+}
+
+enum LoanStatus {
+  ACTIVE
+  REPAID
+  CANCELLED
+}
+
+enum PriceUnit {
+  PER_M2
+  PER_UNIT
+  CUSTOM
+}
+
+enum ScheduleType {
+  LAND_PAYMENT
+  CONSTRUCTION_PAYMENT
+  LOAN_DISBURSEMENT
+  LOAN_REPAYMENT
+  REVENUE_COLLECTION
+  EQUITY_CONTRIBUTION
+}
+
+// ─── MODEL: NGƯỜI DÙNG ───────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         UserRole @default(VIEWER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projectsCreated Project[]         @relation("ProjectCreatedBy")
+  memberships     ProjectMember[]
+  documents       ProjectDocument[]
+
+  @@map("users")
+}
+
+// ─── MODEL: DỰ ÁN ────────────────────────────────────────────────────────────
+
+model Project {
+  id               String        @id @default(cuid())
+  code             String        @unique
+  name             String
+  type             ProjectType
+  status           ProjectStatus @default(PLANNING)
+  currencyCode     String        @default("VND")
+  province         String
+  district         String?
+  address          String?
+  totalArea        Float
+  buildableArea    Float?
+  grossFloorArea   Float?
+  commercialArea   Float?
+  startDate        DateTime?
+  endDate          DateTime?
+  description      String?
+  createdById      String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  createdBy User?             @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  members   ProjectMember[]
+  scenarios Scenario[]
+  documents ProjectDocument[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(VIEWER)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model ProjectDocument {
+  id           String       @id @default(cuid())
+  projectId    String
+  type         DocumentType
+  name         String
+  description  String?
+  fileUrl      String
+  fileSize     Int?
+  mimeType     String?
+  uploadedById String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+
+  @@index([projectId])
+  @@index([uploadedById])
+  @@map("project_documents")
+}
+
+// ─── MODEL: KỊCH BẢN ─────────────────────────────────────────────────────────
+
+model Scenario {
+  id                     String       @id @default(cuid())
+  projectId              String
+  name                   String
+  type                   ScenarioType @default(BASE)
+  description            String?
+  isBase                 Boolean      @default(false)
+  isActive               Boolean      @default(true)
+  version                Int          @default(1)
+  parentScenarioId       String?
+  isSnapshot             Boolean      @default(false)
+  durationMonths         Int?
+  constructionStartMonth Int?
+  salesStartMonth        Int?
+  handoverStartMonth     Int?
+  discountRate           Decimal?     @db.Decimal(10, 4)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  project        Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentScenario Scenario?  @relation("ScenarioVersions", fields: [parentScenarioId], references: [id], onDelete: SetNull)
+  childScenarios Scenario[] @relation("ScenarioVersions")
+
+  assumption          Assumption?
+  landCosts           LandCost[]
+  constructionPhases  ConstructionPhase[]
+  constructionCosts   ConstructionCost[]
+  revenueProducts     RevenueProduct[]
+  loans               Loan[]
+  equityContributions EquityContribution[]
+  cashFlowEntries     CashFlowEntry[]
+  kpiSnapshot         KPISnapshot?
+
+  @@index([projectId])
+  @@index([parentScenarioId])
+  @@map("scenarios")
+}
+
+// ─── MODEL: GIẢ ĐỊNH ─────────────────────────────────────────────────────────
+
+model Assumption {
+  id                  String   @id @default(cuid())
+  scenarioId          String   @unique
+  discountRate        Decimal  @db.Decimal(10, 4)
+  corporateTaxRate    Decimal  @db.Decimal(10, 4)
+  inflationRate       Decimal  @db.Decimal(10, 4)
+  vatRate             Decimal  @db.Decimal(10, 4)
+  salesCommissionRate Decimal  @db.Decimal(10, 4)
+  contingencyRate     Decimal  @db.Decimal(10, 4)
+  otherAssumptions    Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@map("assumptions")
+}
+
+// ─── MODEL: CHI PHÍ ──────────────────────────────────────────────────────────
+
+model LandCost {
+  id          String   @id @default(cuid())
+  scenarioId  String
+  name        String
+  description String?
+  totalAmount Decimal  @db.Decimal(20, 0)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  scenario        Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  paymentSchedule PaymentSchedule?
+
+  @@index([scenarioId])
+  @@map("land_costs")
+}
+
+model ConstructionPhase {
+  id          String   @id @default(cuid())
+  scenarioId  String
+  name        String
+  sequence    Int
+  startDate   DateTime
+  endDate     DateTime
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  scenario          Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  constructionCosts ConstructionCost[]
+
+  @@index([scenarioId])
+  @@map("construction_phases")
+}
+
+model ConstructionCost {
+  id          String       @id @default(cuid())
+  scenarioId  String
+  phaseId     String?
+  category    CostCategory
+  name        String
+  description String?
+  unit        String?
+  quantity    Float?
+  unitPrice   Decimal?     @db.Decimal(20, 0)
+  totalAmount Decimal      @db.Decimal(20, 0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  scenario        Scenario           @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  phase           ConstructionPhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  paymentSchedule PaymentSchedule?
+
+  @@index([scenarioId])
+  @@index([phaseId])
+  @@map("construction_costs")
+}
+
+// ─── MODEL: DOANH THU ────────────────────────────────────────────────────────
+
+model RevenueProduct {
+  id                 String    @id @default(cuid())
+  scenarioId         String
+  name               String
+  productType        String
+  totalUnits         Int
+  averageArea        Float
+  launchPrice        Decimal   @db.Decimal(20, 0)
+  priceUnit          PriceUnit
+  customPriceNote    String?
+  launchDate         DateTime
+  saleCompletionDate DateTime
+  absorptionSchedule Json
+  collectionTerms    Json
+  priceEscalation    Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  scenario        Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  paymentSchedule PaymentSchedule?
+
+  @@index([scenarioId])
+  @@map("revenue_products")
+}
+
+// ─── MODEL: VỐN VAY ──────────────────────────────────────────────────────────
+
+model Loan {
+  id                  String     @id @default(cuid())
+  scenarioId          String
+  name                String
+  lenderName          String?
+  type                LoanType
+  status              LoanStatus @default(ACTIVE)
+  principalAmount     Decimal    @db.Decimal(20, 0)
+  interestRate        Decimal    @db.Decimal(10, 4)
+  tenorMonths         Int
+  gracePeriodMonths   Int        @default(0)
+  startDate           DateTime
+  capitalizedInterest Boolean    @default(false)
+  notes               String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  scenario             Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  disbursementSchedule PaymentSchedule? @relation("LoanDisbursementSchedule")
+  repaymentSchedule    PaymentSchedule? @relation("LoanRepaymentSchedule")
+
+  @@index([scenarioId])
+  @@map("loans")
+}
+
+// ─── MODEL: GÓP VỐN ──────────────────────────────────────────────────────────
+
+model EquityContribution {
+  id              String   @id @default(cuid())
+  scenarioId      String
+  name            String
+  contributorName String?
+  totalAmount     Decimal  @db.Decimal(20, 0)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  scenario        Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  paymentSchedule PaymentSchedule?
+
+  @@index([scenarioId])
+  @@map("equity_contributions")
+}
+
+// ─── MODEL: LỊCH THANH TOÁN ──────────────────────────────────────────────────
+
+model PaymentSchedule {
+  id                   String       @id @default(cuid())
+  scheduleType         ScheduleType
+  name                 String
+  totalAmount          Decimal      @db.Decimal(20, 0)
+  landCostId           String?      @unique
+  constructionCostId   String?      @unique
+  loanDisbursementId   String?      @unique
+  loanRepaymentId      String?      @unique
+  revenueProductId     String?      @unique
+  equityContributionId String?      @unique
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  landCost           LandCost?           @relation(fields: [landCostId], references: [id], onDelete: Cascade)
+  constructionCost   ConstructionCost?   @relation(fields: [constructionCostId], references: [id], onDelete: Cascade)
+  loanDisbursement   Loan?               @relation("LoanDisbursementSchedule", fields: [loanDisbursementId], references: [id], onDelete: Cascade)
+  loanRepayment      Loan?               @relation("LoanRepaymentSchedule", fields: [loanRepaymentId], references: [id], onDelete: Cascade)
+  revenueProduct     RevenueProduct?     @relation(fields: [revenueProductId], references: [id], onDelete: Cascade)
+  equityContribution EquityContribution? @relation(fields: [equityContributionId], references: [id], onDelete: Cascade)
+
+  milestones PaymentMilestone[]
+
+  @@map("payment_schedules")
+}
+
+model PaymentMilestone {
+  id          String   @id @default(cuid())
+  scheduleId  String
+  sequence    Int
+  year        Int
+  month       Int
+  amount      Decimal  @db.Decimal(20, 0)
+  description String?
+  isPaid      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedule PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, sequence])
+  @@map("payment_milestones")
+}
+
+// ─── MODEL: DÒNG TIỀN & CHỈ TIÊU TÀI CHÍNH ──────────────────────────────────
+
+model CashFlowEntry {
+  id                  String   @id @default(cuid())
+  scenarioId          String
+  year                Int
+  month               Int
+  period              Int
+  revenueCollection   Decimal  @default(0) @db.Decimal(20, 0)
+  loanDisbursement    Decimal  @default(0) @db.Decimal(20, 0)
+  equityInflow        Decimal  @default(0) @db.Decimal(20, 0)
+  otherInflow         Decimal  @default(0) @db.Decimal(20, 0)
+  landPayment         Decimal  @default(0) @db.Decimal(20, 0)
+  constructionPayment Decimal  @default(0) @db.Decimal(20, 0)
+  loanRepayment       Decimal  @default(0) @db.Decimal(20, 0)
+  interestPayment     Decimal  @default(0) @db.Decimal(20, 0)
+  taxPayment          Decimal  @default(0) @db.Decimal(20, 0)
+  otherOutflow        Decimal  @default(0) @db.Decimal(20, 0)
+  netCashFlow         Decimal  @default(0) @db.Decimal(20, 0)
+  cumulativeCashFlow  Decimal  @default(0) @db.Decimal(20, 0)
+  computedAt          DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@unique([scenarioId, year, month])
+  @@map("cash_flow_entries")
+}
+
+model KPISnapshot {
+  id                     String   @id @default(cuid())
+  scenarioId             String   @unique
+  totalRevenue           Decimal? @db.Decimal(20, 0)
+  totalCost              Decimal? @db.Decimal(20, 0)
+  grossProfit            Decimal? @db.Decimal(20, 0)
+  grossMargin            Decimal? @db.Decimal(10, 4)
+  netProfit              Decimal? @db.Decimal(20, 0)
+  netMargin              Decimal? @db.Decimal(10, 4)
+  irr                    Decimal? @db.Decimal(10, 4)
+  npv                    Decimal? @db.Decimal(20, 0)
+  roi                    Decimal? @db.Decimal(10, 4)
+  paybackPeriodMonths    Int?
+  peakFundingRequirement Decimal? @db.Decimal(20, 0)
+  peakFundingMonth       Int?
+  computedAt             DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@map("kpi_snapshots")
+}
