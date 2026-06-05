@@ -86,6 +86,26 @@ enum CostCategory {
   OTHER
 }
 
+enum ConstructionCostCategory {
+  FOUNDATION
+  STRUCTURE
+  MEP
+  FINISHING
+  INFRASTRUCTURE
+  PROFESSIONAL_FEES
+  MANAGEMENT
+  CONTINGENCY
+  OTHER
+}
+
+enum DistributionType {
+  UNIFORM
+  S_CURVE
+  FRONT_LOADED
+  BACK_LOADED
+  MANUAL
+}
+
 enum LoanType {
   BANK_LOAN
   BOND
@@ -229,6 +249,7 @@ model Scenario {
   assumption          Assumption?
   landCosts           LandCost[]
   constructionPhases  ConstructionPhase[]
+  contractPackages    ContractPackage[]
   constructionCosts   ConstructionCost[]
   revenueProducts     RevenueProduct[]
   loans               Loan[]
@@ -309,40 +330,70 @@ model ConstructionPhase {
   id          String   @id @default(cuid())
   scenarioId  String
   name        String
-  sequence    Int
-  startDate   DateTime
-  endDate     DateTime
+  sequence    Int      @default(0)
+  startMonth  Int
+  endMonth    Int
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   scenario          Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  packages          ContractPackage[]
   constructionCosts ConstructionCost[]
 
   @@index([scenarioId])
   @@map("construction_phases")
 }
 
+model ContractPackage {
+  id                 String           @id @default(cuid())
+  scenarioId         String
+  phaseId            String
+  name               String
+  contractorName     String?
+  contractValue      Decimal          @db.Decimal(20, 0)
+  startMonth         Int
+  endMonth           Int
+  distributionType   DistributionType @default(UNIFORM)
+  customDistribution Json?
+  notes              String?
+  sequence           Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  scenario          Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  phase             ConstructionPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  constructionCosts ConstructionCost[]
+
+  @@index([scenarioId])
+  @@index([phaseId])
+  @@map("contract_packages")
+}
+
 model ConstructionCost {
-  id          String       @id @default(cuid())
+  id          String                   @id @default(cuid())
   scenarioId  String
   phaseId     String?
-  category    CostCategory
+  packageId   String?
+  category    ConstructionCostCategory @default(OTHER)
   name        String
   description String?
   unit        String?
   quantity    Float?
-  unitPrice   Decimal?     @db.Decimal(20, 0)
-  totalAmount Decimal      @db.Decimal(20, 0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  unitPrice   Decimal?                 @db.Decimal(20, 0)
+  totalAmount Decimal                  @db.Decimal(20, 0)
+  sequence    Int                      @default(0)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
 
   scenario        Scenario           @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   phase           ConstructionPhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  package         ContractPackage?   @relation(fields: [packageId], references: [id], onDelete: SetNull)
   paymentSchedule PaymentSchedule?
 
   @@index([scenarioId])
   @@index([phaseId])
+  @@index([packageId])
   @@map("construction_costs")
 }
 

@@ -18,7 +18,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <p className="text-sm font-semibold leading-none text-white">
               Dòng Tiền BĐS
             </p>
-            <p className="mt-0.5 text-xs text-slate-400">Financial Schedule</p>
+            <p className="mt-0.5 text-xs text-slate-400">Kế hoạch tài chính</p>
           </div>
         </div>
         {onClose && (
