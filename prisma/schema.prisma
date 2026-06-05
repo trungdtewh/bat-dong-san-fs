@@ -64,6 +64,17 @@ enum ScenarioType {
 
 // ─── ENUM: TÀI CHÍNH ─────────────────────────────────────────────────────────
 
+enum LandCostCategory {
+  LAND_USE_FEE
+  LAND_LEASE_FEE
+  COMPENSATION
+  RELOCATION
+  SITE_PREPARATION
+  LEGAL_FEES
+  TAX_AND_FEES
+  OTHER
+}
+
 enum CostCategory {
   LAND_CLEARANCE
   CONSTRUCTION
@@ -273,14 +284,19 @@ model Assumption {
 // ─── MODEL: CHI PHÍ ──────────────────────────────────────────────────────────
 
 model LandCost {
-  id          String   @id @default(cuid())
-  scenarioId  String
-  name        String
-  description String?
-  totalAmount Decimal  @db.Decimal(20, 0)
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String           @id @default(cuid())
+  scenarioId   String
+  category     LandCostCategory @default(OTHER)
+  name         String
+  description  String?
+  area         Float?
+  unitPrice    Decimal?         @db.Decimal(20, 0)
+  totalAmount  Decimal          @db.Decimal(20, 0)
+  paymentMonth Int
+  sequence     Int              @default(0)
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   scenario        Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   paymentSchedule PaymentSchedule?
