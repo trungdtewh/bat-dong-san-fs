@@ -181,26 +181,28 @@ export default async function ChiTietKichBanPage({ params }: Props) {
 
         {/* Giả định */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">
-            Giả định tài chính
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700">Giả định tài chính</h2>
+            <Link
+              href={`/du-an/${projectId}/kich-ban/${scenarioId}/gia-dinh`}
+              className="text-xs font-medium text-blue-600 hover:underline"
+            >
+              Xem tất cả →
+            </Link>
+          </div>
           {scenario.assumption ? (
             <dl className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-              <InfoRow
-                label="Tỷ lệ chiết khấu"
-                value={formatRate(scenario.assumption.discountRate)}
-              />
               <InfoRow
                 label="Thuế thu nhập DN"
                 value={formatRate(scenario.assumption.corporateTaxRate)}
               />
               <InfoRow
-                label="Lạm phát"
-                value={formatRate(scenario.assumption.inflationRate)}
-              />
-              <InfoRow
                 label="Thuế GTGT"
                 value={formatRate(scenario.assumption.vatRate)}
+              />
+              <InfoRow
+                label="Lạm phát"
+                value={formatRate(scenario.assumption.inflationRate)}
               />
               <InfoRow
                 label="Phí môi giới"
@@ -215,7 +217,7 @@ export default async function ChiTietKichBanPage({ params }: Props) {
             <p className="text-sm text-gray-400">
               Chưa có giả định tài chính.{" "}
               <Link
-                href={`/du-an/${projectId}/kich-ban/${scenarioId}/sua`}
+                href={`/du-an/${projectId}/kich-ban/${scenarioId}/gia-dinh`}
                 className="text-blue-600 hover:underline"
               >
                 Thêm giả định

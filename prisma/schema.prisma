@@ -233,17 +233,37 @@ model Scenario {
 // ─── MODEL: GIẢ ĐỊNH ─────────────────────────────────────────────────────────
 
 model Assumption {
-  id                  String   @id @default(cuid())
-  scenarioId          String   @unique
-  discountRate        Decimal  @db.Decimal(10, 4)
+  id         String @id @default(cuid())
+  scenarioId String @unique
+
+  // Nhóm 1: Kinh tế vĩ mô
+  inflationRate              Decimal  @db.Decimal(10, 4)
+  priceEscalationRate        Decimal? @db.Decimal(10, 4)
+  constructionEscalationRate Decimal? @db.Decimal(10, 4)
+  landPriceEscalationRate    Decimal? @db.Decimal(10, 4)
+
+  // Nhóm 2: Thuế & Phí
   corporateTaxRate    Decimal  @db.Decimal(10, 4)
-  inflationRate       Decimal  @db.Decimal(10, 4)
   vatRate             Decimal  @db.Decimal(10, 4)
+  landTransferTaxRate Decimal? @db.Decimal(10, 4)
+
+  // Nhóm 3: Chi phí bán hàng
   salesCommissionRate Decimal  @db.Decimal(10, 4)
-  contingencyRate     Decimal  @db.Decimal(10, 4)
-  otherAssumptions    Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  marketingCostRate   Decimal? @db.Decimal(10, 4)
+
+  // Nhóm 4: Dự phòng
+  contingencyRate Decimal @db.Decimal(10, 4)
+
+  // Nhóm 5: Cấu trúc vốn & Vay
+  debtRatio         Decimal? @db.Decimal(10, 4)
+  equityRatio       Decimal? @db.Decimal(10, 4)
+  loanInterestRate  Decimal? @db.Decimal(10, 4)
+  loanTenorMonths   Int?
+  gracePeriodMonths Int?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
 
