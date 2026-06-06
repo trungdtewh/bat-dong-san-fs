@@ -120,10 +120,35 @@ enum LoanStatus {
   CANCELLED
 }
 
-enum PriceUnit {
-  PER_M2
-  PER_UNIT
+enum RepaymentMethod {
+  EQUAL_PRINCIPAL
+  ANNUITY
+  BULLET
   CUSTOM
+}
+
+enum EquitySourceType {
+  OWNER_EQUITY
+  JOINT_VENTURE
+  PREFERRED_EQUITY
+  STRATEGIC_INVESTOR
+  OTHER
+}
+
+enum PriceUnit {
+  PER_SQM
+  PER_UNIT
+}
+
+enum RevenueProductType {
+  APARTMENT
+  LAND_PLOT
+  TOWNHOUSE
+  SHOPHOUSE
+  VILLA
+  OFFICE
+  RETAIL
+  OTHER
 }
 
 enum ScheduleType {
@@ -251,7 +276,7 @@ model Scenario {
   constructionPhases  ConstructionPhase[]
   contractPackages    ContractPackage[]
   constructionCosts   ConstructionCost[]
-  revenueProducts     RevenueProduct[]
+  productGroups       ProductGroup[]
   loans               Loan[]
   equityContributions EquityContribution[]
   cashFlowEntries     CashFlowEntry[]
@@ -399,53 +424,73 @@ model ConstructionCost {
 
 // ─── MODEL: DOANH THU ────────────────────────────────────────────────────────
 
-model RevenueProduct {
-  id                 String    @id @default(cuid())
-  scenarioId         String
-  name               String
-  productType        String
-  totalUnits         Int
-  averageArea        Float
-  launchPrice        Decimal   @db.Decimal(20, 0)
-  priceUnit          PriceUnit
-  customPriceNote    String?
-  launchDate         DateTime
-  saleCompletionDate DateTime
-  absorptionSchedule Json
-  collectionTerms    Json
-  priceEscalation    Json?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+model ProductGroup {
+  id          String             @id @default(cuid())
+  scenarioId  String
+  productCode String?
+  name        String
+  productType RevenueProductType @default(APARTMENT)
+  totalUnits  Int
+  area        Float?
+  basePrice   Decimal            @db.Decimal(20, 0)
+  priceUnit   PriceUnit          @default(PER_SQM)
+  vatRate     Decimal            @db.Decimal(10, 4) @default(0.1000)
+  notes       String?
+  sequence    Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
-  scenario        Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
-  paymentSchedule PaymentSchedule?
+  scenario Scenario       @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  batches  ProductBatch[]
 
   @@index([scenarioId])
-  @@map("revenue_products")
+  @@map("product_groups")
+}
+
+model ProductBatch {
+  id                  String       @id @default(cuid())
+  scenarioId          String
+  groupId             String
+  name                String
+  launchMonth         Int
+  unitsOffered        Int
+  priceAdjustmentRate Decimal      @db.Decimal(10, 4) @default(0.0000)
+  salesVelocity       Decimal      @db.Decimal(10, 4)
+  collectionSchedule  Json
+  notes               String?
+  sequence            Int          @default(0)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  group ProductGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+  @@index([groupId])
+  @@map("product_batches")
 }
 
 // ─── MODEL: VỐN VAY ──────────────────────────────────────────────────────────
 
 model Loan {
-  id                  String     @id @default(cuid())
+  id                  String          @id @default(cuid())
   scenarioId          String
   name                String
   lenderName          String?
   type                LoanType
-  status              LoanStatus @default(ACTIVE)
-  principalAmount     Decimal    @db.Decimal(20, 0)
-  interestRate        Decimal    @db.Decimal(10, 4)
+  status              LoanStatus      @default(ACTIVE)
+  principalAmount     Decimal         @db.Decimal(20, 0)
+  interestRate        Decimal         @db.Decimal(10, 4)
   tenorMonths         Int
-  gracePeriodMonths   Int        @default(0)
-  startDate           DateTime
-  capitalizedInterest Boolean    @default(false)
+  gracePeriodMonths   Int             @default(0)
+  startMonth          Int
+  capitalizedInterest Boolean         @default(false)
+  repaymentMethod     RepaymentMethod @default(EQUAL_PRINCIPAL)
   notes               String?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   scenario             Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   disbursementSchedule PaymentSchedule? @relation("LoanDisbursementSchedule")
-  repaymentSchedule    PaymentSchedule? @relation("LoanRepaymentSchedule")
 
   @@index([scenarioId])
   @@map("loans")
@@ -454,14 +499,15 @@ model Loan {
 // ─── MODEL: GÓP VỐN ──────────────────────────────────────────────────────────
 
 model EquityContribution {
-  id              String   @id @default(cuid())
+  id              String          @id @default(cuid())
   scenarioId      String
   name            String
   contributorName String?
-  totalAmount     Decimal  @db.Decimal(20, 0)
+  sourceType      EquitySourceType @default(OWNER_EQUITY)
+  totalAmount     Decimal          @db.Decimal(20, 0)
   notes           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   scenario        Scenario         @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   paymentSchedule PaymentSchedule?
@@ -480,8 +526,6 @@ model PaymentSchedule {
   landCostId           String?      @unique
   constructionCostId   String?      @unique
   loanDisbursementId   String?      @unique
-  loanRepaymentId      String?      @unique
-  revenueProductId     String?      @unique
   equityContributionId String?      @unique
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
@@ -489,8 +533,6 @@ model PaymentSchedule {
   landCost           LandCost?           @relation(fields: [landCostId], references: [id], onDelete: Cascade)
   constructionCost   ConstructionCost?   @relation(fields: [constructionCostId], references: [id], onDelete: Cascade)
   loanDisbursement   Loan?               @relation("LoanDisbursementSchedule", fields: [loanDisbursementId], references: [id], onDelete: Cascade)
-  loanRepayment      Loan?               @relation("LoanRepaymentSchedule", fields: [loanRepaymentId], references: [id], onDelete: Cascade)
-  revenueProduct     RevenueProduct?     @relation(fields: [revenueProductId], references: [id], onDelete: Cascade)
   equityContribution EquityContribution? @relation(fields: [equityContributionId], references: [id], onDelete: Cascade)
 
   milestones PaymentMilestone[]
@@ -499,16 +541,15 @@ model PaymentSchedule {
 }
 
 model PaymentMilestone {
-  id          String   @id @default(cuid())
-  scheduleId  String
-  sequence    Int
-  year        Int
-  month       Int
-  amount      Decimal  @db.Decimal(20, 0)
-  description String?
-  isPaid      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  scheduleId   String
+  sequence     Int
+  projectMonth Int
+  amount       Decimal  @db.Decimal(20, 0)
+  description  String?
+  isPaid       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   schedule PaymentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
@@ -521,9 +562,7 @@ model PaymentMilestone {
 model CashFlowEntry {
   id                  String   @id @default(cuid())
   scenarioId          String
-  year                Int
-  month               Int
-  period              Int
+  projectMonth        Int
   revenueCollection   Decimal  @default(0) @db.Decimal(20, 0)
   loanDisbursement    Decimal  @default(0) @db.Decimal(20, 0)
   equityInflow        Decimal  @default(0) @db.Decimal(20, 0)
@@ -534,6 +573,8 @@ model CashFlowEntry {
   interestPayment     Decimal  @default(0) @db.Decimal(20, 0)
   taxPayment          Decimal  @default(0) @db.Decimal(20, 0)
   otherOutflow        Decimal  @default(0) @db.Decimal(20, 0)
+  totalInflow         Decimal  @default(0) @db.Decimal(20, 0)
+  totalOutflow        Decimal  @default(0) @db.Decimal(20, 0)
   netCashFlow         Decimal  @default(0) @db.Decimal(20, 0)
   cumulativeCashFlow  Decimal  @default(0) @db.Decimal(20, 0)
   computedAt          DateTime @default(now())
@@ -542,7 +583,7 @@ model CashFlowEntry {
 
   scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
 
-  @@unique([scenarioId, year, month])
+  @@unique([scenarioId, projectMonth])
   @@map("cash_flow_entries")
 }
 
