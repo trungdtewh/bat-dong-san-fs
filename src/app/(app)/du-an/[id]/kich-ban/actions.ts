@@ -9,6 +9,8 @@ import {
   deleteScenario,
   cloneScenario,
 } from "@/lib/db/scenarios";
+import { assertProjectAccess, assertScenarioAccess } from "@/lib/db/access";
+import { getRequiredSession } from "@/lib/auth/session";
 
 export type ActionState = {
   success: boolean;
@@ -32,6 +34,9 @@ function parseFormData(formData: FormData) {
 
 function handleDbError(err: unknown): ActionState {
   const msg = err instanceof Error ? err.message : "";
+  if (msg === "FORBIDDEN") {
+    return { success: false, message: "Bạn không có quyền thực hiện hành động này." };
+  }
   if (msg === "BASE_EXISTS") {
     return {
       success: false,
@@ -46,6 +51,9 @@ export async function createScenarioAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const result = scenarioSchema.safeParse(parseFormData(formData));
   if (!result.success) {
     return { success: false, errors: result.error.flatten().fieldErrors };
@@ -53,6 +61,7 @@ export async function createScenarioAction(
 
   let scenario;
   try {
+    await assertProjectAccess(session.user.id, projectId, "EDITOR");
     scenario = await createScenario(projectId, result.data);
   } catch (err) {
     return handleDbError(err);
@@ -68,12 +77,16 @@ export async function updateScenarioAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const result = scenarioSchema.safeParse(parseFormData(formData));
   if (!result.success) {
     return { success: false, errors: result.error.flatten().fieldErrors };
   }
 
   try {
+    await assertScenarioAccess(session.user.id, id, "EDITOR");
     await updateScenario(id, result.data);
   } catch (err) {
     return handleDbError(err);
@@ -88,10 +101,14 @@ export async function deleteScenarioAction(
   id: string,
   projectId: string
 ): Promise<ActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertScenarioAccess(session.user.id, id, "EDITOR");
     await deleteScenario(id);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa kịch bản." };
+  } catch (err) {
+    return handleDbError(err);
   }
   revalidatePath(`/du-an/${projectId}/kich-ban`);
   redirect(`/du-an/${projectId}/kich-ban`);
@@ -101,11 +118,15 @@ export async function cloneScenarioAction(
   id: string,
   projectId: string
 ): Promise<ActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   let cloned;
   try {
+    await assertScenarioAccess(session.user.id, id, "EDITOR");
     cloned = await cloneScenario(id);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi nhân bản kịch bản." };
+  } catch (err) {
+    return handleDbError(err);
   }
   revalidatePath(`/du-an/${projectId}/kich-ban`);
   redirect(`/du-an/${projectId}/kich-ban/${cloned.id}`);

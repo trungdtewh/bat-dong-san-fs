@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assumptionSchema } from "@/lib/validations/assumption";
 import { upsertAssumption } from "@/lib/db/assumptions";
+import { assertScenarioAccess } from "@/lib/db/access";
+import { getRequiredSession } from "@/lib/auth/session";
 
 export type AssumptionActionState = {
   success: boolean;
@@ -39,14 +41,22 @@ export async function upsertAssumptionAction(
   _prev: AssumptionActionState,
   formData: FormData
 ): Promise<AssumptionActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const result = assumptionSchema.safeParse(parseFormData(formData));
   if (!result.success) {
     return { success: false, errors: result.error.flatten().fieldErrors };
   }
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await upsertAssumption(scenarioId, result.data);
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg === "FORBIDDEN") {
+      return { success: false, message: "Bạn không có quyền thực hiện hành động này." };
+    }
     return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 

@@ -16,6 +16,8 @@ import {
   deletePackage,
 } from "@/lib/db/contract-packages";
 import { createCost, updateCost, deleteCost } from "@/lib/db/construction-costs";
+import { assertScenarioAccess } from "@/lib/db/access";
+import { getRequiredSession } from "@/lib/auth/session";
 
 export type ConstructionActionState = {
   success: boolean;
@@ -27,6 +29,14 @@ function revalidateAll(projectId: string, scenarioId: string) {
   revalidatePath(`/du-an/${projectId}/kich-ban/${scenarioId}/chi-phi-xay-dung`);
 }
 
+function handleAccessError(err: unknown): ConstructionActionState | null {
+  const msg = err instanceof Error ? err.message : "";
+  if (msg === "FORBIDDEN") {
+    return { success: false, message: "Bạn không có quyền thực hiện hành động này." };
+  }
+  return null;
+}
+
 // ── GIAI ĐOẠN ────────────────────────────────────────────────────────────────
 
 export async function createPhaseAction(
@@ -35,6 +45,9 @@ export async function createPhaseAction(
   _prev: ConstructionActionState,
   formData: FormData
 ): Promise<ConstructionActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const raw = {
     name: formData.get("name") || undefined,
     startMonth: formData.get("startMonth") || undefined,
@@ -46,9 +59,10 @@ export async function createPhaseAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await createPhase(scenarioId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidateAll(projectId, scenarioId);
@@ -62,6 +76,9 @@ export async function updatePhaseAction(
   _prev: ConstructionActionState,
   formData: FormData
 ): Promise<ConstructionActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const raw = {
     name: formData.get("name") || undefined,
     startMonth: formData.get("startMonth") || undefined,
@@ -73,9 +90,10 @@ export async function updatePhaseAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await updatePhase(phaseId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidateAll(projectId, scenarioId);
@@ -87,10 +105,14 @@ export async function deletePhaseAction(
   scenarioId: string,
   projectId: string
 ): Promise<{ success: boolean; message?: string }> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await deletePhase(phaseId);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa giai đoạn." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra khi xóa giai đoạn." };
   }
   revalidateAll(projectId, scenarioId);
   return { success: true };
@@ -105,6 +127,9 @@ export async function createPackageAction(
   _prev: ConstructionActionState,
   formData: FormData
 ): Promise<ConstructionActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const raw = {
     name: formData.get("name") || undefined,
     contractorName: formData.get("contractorName") || undefined,
@@ -120,9 +145,10 @@ export async function createPackageAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await createPackage(scenarioId, phaseId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidateAll(projectId, scenarioId);
@@ -139,6 +165,9 @@ export async function updatePackageAction(
   _prev: ConstructionActionState,
   formData: FormData
 ): Promise<ConstructionActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const raw = {
     name: formData.get("name") || undefined,
     contractorName: formData.get("contractorName") || undefined,
@@ -154,9 +183,10 @@ export async function updatePackageAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await updatePackage(packageId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidateAll(projectId, scenarioId);
@@ -171,10 +201,14 @@ export async function deletePackageAction(
   scenarioId: string,
   projectId: string
 ): Promise<{ success: boolean; message?: string }> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await deletePackage(packageId);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa gói thầu." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra khi xóa gói thầu." };
   }
   revalidateAll(projectId, scenarioId);
   return { success: true };
@@ -190,6 +224,9 @@ export async function createCostAction(
   _prev: ConstructionActionState,
   formData: FormData
 ): Promise<ConstructionActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const raw = {
     category: formData.get("category") || undefined,
     name: formData.get("name") || undefined,
@@ -205,9 +242,10 @@ export async function createCostAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await createCost(scenarioId, phaseId, packageId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidateAll(projectId, scenarioId);
@@ -224,6 +262,9 @@ export async function updateCostAction(
   _prev: ConstructionActionState,
   formData: FormData
 ): Promise<ConstructionActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const raw = {
     category: formData.get("category") || undefined,
     name: formData.get("name") || undefined,
@@ -239,9 +280,10 @@ export async function updateCostAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await updateCost(costId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidateAll(projectId, scenarioId);
@@ -256,10 +298,14 @@ export async function deleteCostAction(
   scenarioId: string,
   projectId: string
 ): Promise<{ success: boolean; message?: string }> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await deleteCost(costId);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa hạng mục." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra khi xóa hạng mục." };
   }
   revalidateAll(projectId, scenarioId);
   return { success: true };

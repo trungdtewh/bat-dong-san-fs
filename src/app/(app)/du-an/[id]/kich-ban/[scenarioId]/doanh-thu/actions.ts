@@ -14,6 +14,8 @@ import {
   updateBatch,
   deleteBatch,
 } from "@/lib/db/product-batches";
+import { assertScenarioAccess } from "@/lib/db/access";
+import { getRequiredSession } from "@/lib/auth/session";
 
 export type RevenueActionState = {
   success: boolean;
@@ -25,6 +27,14 @@ function revalidate(projectId: string, scenarioId: string) {
   revalidatePath(`/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`);
 }
 
+function handleAccessError(err: unknown): RevenueActionState | null {
+  const msg = err instanceof Error ? err.message : "";
+  if (msg === "FORBIDDEN") {
+    return { success: false, message: "Bạn không có quyền thực hiện hành động này." };
+  }
+  return null;
+}
+
 // ─── ProductGroup ─────────────────────────────────────────────────────────────
 
 export async function createGroupAction(
@@ -33,6 +43,9 @@ export async function createGroupAction(
   _prev: RevenueActionState,
   formData: FormData
 ): Promise<RevenueActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const vatPct = parseFloat(String(formData.get("vatRate") ?? "0"));
   const raw = {
     productCode: formData.get("productCode"),
@@ -50,9 +63,10 @@ export async function createGroupAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await createGroup(scenarioId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
   revalidate(projectId, scenarioId);
   redirect(`/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`);
@@ -65,6 +79,9 @@ export async function updateGroupAction(
   _prev: RevenueActionState,
   formData: FormData
 ): Promise<RevenueActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const vatPct2 = parseFloat(String(formData.get("vatRate") ?? "0"));
   const raw = {
     productCode: formData.get("productCode"),
@@ -82,9 +99,10 @@ export async function updateGroupAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await updateGroup(groupId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
   revalidate(projectId, scenarioId);
   redirect(`/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`);
@@ -95,10 +113,14 @@ export async function deleteGroupAction(
   scenarioId: string,
   projectId: string
 ): Promise<{ success: boolean; message?: string }> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await deleteGroup(groupId);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa nhóm sản phẩm." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra khi xóa nhóm sản phẩm." };
   }
   revalidate(projectId, scenarioId);
   return { success: true };
@@ -113,6 +135,9 @@ export async function createBatchAction(
   _prev: RevenueActionState,
   formData: FormData
 ): Promise<RevenueActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const adjPct = parseFloat(String(formData.get("priceAdjustmentRate") ?? "0"));
   const raw = {
     name: formData.get("name"),
@@ -128,9 +153,10 @@ export async function createBatchAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await createBatch(groupId, scenarioId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
   revalidate(projectId, scenarioId);
   redirect(`/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`);
@@ -144,6 +170,9 @@ export async function updateBatchAction(
   _prev: RevenueActionState,
   formData: FormData
 ): Promise<RevenueActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const adjPct2 = parseFloat(String(formData.get("priceAdjustmentRate") ?? "0"));
   const raw = {
     name: formData.get("name"),
@@ -159,9 +188,10 @@ export async function updateBatchAction(
     return { success: false, errors: result.error.flatten().fieldErrors };
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await updateBatch(batchId, groupId, scenarioId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
   revalidate(projectId, scenarioId);
   redirect(`/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`);
@@ -172,10 +202,14 @@ export async function deleteBatchAction(
   scenarioId: string,
   projectId: string
 ): Promise<{ success: boolean; message?: string }> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await deleteBatch(batchId);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa đợt mở bán." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra khi xóa đợt mở bán." };
   }
   revalidate(projectId, scenarioId);
   return { success: true };

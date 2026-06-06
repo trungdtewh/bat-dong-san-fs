@@ -1,8 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import type { ProjectFormData } from "@/lib/validations/project";
 
-export async function listProjects() {
+export async function listProjects(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  const where =
+    user?.role === "ADMIN"
+      ? {}
+      : { members: { some: { userId } } };
+
   return prisma.project.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -22,18 +33,27 @@ export async function getProjectById(id: string) {
   });
 }
 
-export async function createProject(data: ProjectFormData) {
-  return prisma.project.create({
-    data: {
-      code: data.code,
-      name: data.name,
-      type: data.type,
-      province: data.province,
-      status: data.status,
-      totalArea: data.totalArea,
-      grossFloorArea: data.grossFloorArea ?? null,
-      commercialArea: data.commercialArea ?? null,
-    },
+export async function createProject(data: ProjectFormData, userId: string) {
+  return prisma.$transaction(async (tx) => {
+    const project = await tx.project.create({
+      data: {
+        code: data.code,
+        name: data.name,
+        type: data.type,
+        province: data.province,
+        status: data.status,
+        totalArea: data.totalArea,
+        grossFloorArea: data.grossFloorArea ?? null,
+        commercialArea: data.commercialArea ?? null,
+        createdById: userId,
+      },
+    });
+
+    await tx.projectMember.create({
+      data: { projectId: project.id, userId, role: "OWNER" },
+    });
+
+    return project;
   });
 }
 

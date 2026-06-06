@@ -2,14 +2,18 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { listProjects } from "@/lib/db/projects";
+import { getRequiredSession } from "@/lib/auth/session";
 import ProjectTable from "@/components/projects/ProjectTable";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Dự án | FS Dòng Tiền BĐS",
 };
 
 export default async function DuAnPage() {
-  const projects = await listProjects();
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+  const projects = await listProjects(session.user.id);
 
   return (
     <div>

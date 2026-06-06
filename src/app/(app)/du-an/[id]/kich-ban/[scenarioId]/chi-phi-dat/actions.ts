@@ -8,6 +8,8 @@ import {
   updateLandCost,
   deleteLandCost,
 } from "@/lib/db/land-costs";
+import { assertScenarioAccess } from "@/lib/db/access";
+import { getRequiredSession } from "@/lib/auth/session";
 
 export type LandCostActionState = {
   success: boolean;
@@ -33,21 +35,33 @@ function revalidate(projectId: string, scenarioId: string) {
   revalidatePath(`/du-an/${projectId}/kich-ban/${scenarioId}/chi-phi-dat`);
 }
 
+function handleAccessError(err: unknown): LandCostActionState | null {
+  const msg = err instanceof Error ? err.message : "";
+  if (msg === "FORBIDDEN") {
+    return { success: false, message: "Bạn không có quyền thực hiện hành động này." };
+  }
+  return null;
+}
+
 export async function createLandCostAction(
   scenarioId: string,
   projectId: string,
   _prev: LandCostActionState,
   formData: FormData
 ): Promise<LandCostActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const result = landCostSchema.safeParse(parseFormData(formData));
   if (!result.success) {
     return { success: false, errors: result.error.flatten().fieldErrors };
   }
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await createLandCost(scenarioId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidate(projectId, scenarioId);
@@ -61,15 +75,19 @@ export async function updateLandCostAction(
   _prev: LandCostActionState,
   formData: FormData
 ): Promise<LandCostActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const result = landCostSchema.safeParse(parseFormData(formData));
   if (!result.success) {
     return { success: false, errors: result.error.flatten().fieldErrors };
   }
 
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await updateLandCost(costId, result.data);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra, vui lòng thử lại." };
   }
 
   revalidate(projectId, scenarioId);
@@ -81,10 +99,14 @@ export async function deleteLandCostAction(
   scenarioId: string,
   projectId: string
 ): Promise<{ success: boolean; message?: string }> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertScenarioAccess(session.user.id, scenarioId, "EDITOR");
     await deleteLandCost(costId);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa mục chi phí." };
+  } catch (err) {
+    return handleAccessError(err) ?? { success: false, message: "Có lỗi xảy ra khi xóa mục chi phí." };
   }
 
   revalidate(projectId, scenarioId);

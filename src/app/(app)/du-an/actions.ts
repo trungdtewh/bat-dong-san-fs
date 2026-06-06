@@ -8,6 +8,8 @@ import {
   updateProject,
   deleteProject,
 } from "@/lib/db/projects";
+import { assertProjectAccess } from "@/lib/db/access";
+import { getRequiredSession } from "@/lib/auth/session";
 
 export type ActionState = {
   success: boolean;
@@ -30,6 +32,9 @@ function parseFormData(formData: FormData) {
 
 function handleDbError(err: unknown): ActionState {
   const msg = err instanceof Error ? err.message : "";
+  if (msg === "FORBIDDEN") {
+    return { success: false, message: "Bạn không có quyền thực hiện hành động này." };
+  }
   if (msg.toLowerCase().includes("unique") || msg.includes("code")) {
     return { success: false, errors: { code: ["Mã dự án đã tồn tại"] } };
   }
@@ -40,13 +45,16 @@ export async function createProjectAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const result = projectSchema.safeParse(parseFormData(formData));
   if (!result.success) {
     return { success: false, errors: result.error.flatten().fieldErrors };
   }
 
   try {
-    await createProject(result.data);
+    await createProject(result.data, session.user.id);
   } catch (err) {
     return handleDbError(err);
   }
@@ -60,12 +68,16 @@ export async function updateProjectAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const result = projectSchema.safeParse(parseFormData(formData));
   if (!result.success) {
     return { success: false, errors: result.error.flatten().fieldErrors };
   }
 
   try {
+    await assertProjectAccess(session.user.id, id, "EDITOR");
     await updateProject(id, result.data);
   } catch (err) {
     return handleDbError(err);
@@ -77,10 +89,14 @@ export async function updateProjectAction(
 }
 
 export async function deleteProjectAction(id: string): Promise<ActionState> {
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   try {
+    await assertProjectAccess(session.user.id, id, "OWNER");
     await deleteProject(id);
-  } catch {
-    return { success: false, message: "Có lỗi xảy ra khi xóa dự án." };
+  } catch (err) {
+    return handleDbError(err);
   }
   revalidatePath("/du-an");
   redirect("/du-an");
