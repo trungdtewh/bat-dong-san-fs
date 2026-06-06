@@ -24,7 +24,7 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Sidebar */}
       <div
         className={[
-          "fixed inset-y-0 left-0 z-30 flex-shrink-0 transition-transform duration-200 ease-in-out",
+          "fixed inset-y-0 left-0 z-30 flex-shrink-0 transition-transform duration-200 ease-in-out print:hidden",
           "lg:relative lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}

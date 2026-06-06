@@ -104,6 +104,37 @@ export async function deleteScenario(id: string) {
   return prisma.scenario.delete({ where: { id } });
 }
 
+export async function getScenarioFullReport(id: string) {
+  return prisma.scenario.findUnique({
+    where: { id },
+    include: {
+      project: true,
+      assumption: true,
+      kpiSnapshot: true,
+      cashFlowEntries: { orderBy: { projectMonth: "asc" } },
+      landCosts: {
+        orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
+      },
+      constructionPhases: {
+        include: {
+          packages: { orderBy: [{ sequence: "asc" }, { startMonth: "asc" }] },
+        },
+        orderBy: [{ sequence: "asc" }, { startMonth: "asc" }],
+      },
+      productGroups: {
+        include: { batches: { orderBy: { sequence: "asc" } } },
+        orderBy: { sequence: "asc" },
+      },
+      loans: { orderBy: { createdAt: "asc" } },
+      equityContributions: { orderBy: { createdAt: "asc" } },
+    },
+  });
+}
+
+export type ScenarioFullReport = NonNullable<
+  Awaited<ReturnType<typeof getScenarioFullReport>>
+>;
+
 export async function cloneScenario(id: string) {
   const original = await prisma.scenario.findUnique({
     where: { id },
