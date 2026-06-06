@@ -1,4 +1,5 @@
-import { Bell, Menu, UserCircle } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
+import UserMenu from "@/components/auth/UserMenu";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -29,12 +30,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         >
           <Bell className="h-5 w-5" />
         </button>
-        <div className="ml-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-100">
-          <UserCircle className="h-5 w-5 text-gray-500" />
-          <span className="hidden text-sm text-gray-700 sm:inline">
-            Người dùng
-          </span>
-        </div>
+        <UserMenu />
       </div>
     </header>
   );
