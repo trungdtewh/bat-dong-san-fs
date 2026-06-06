@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, GitBranch, Pencil, Plus, Star } from "lucide-react";
+import { ChevronLeft, GitBranch, LayoutDashboard, Pencil, Plus, Star } from "lucide-react";
 import type { Metadata } from "next";
 import { getProjectById } from "@/lib/db/projects";
 import { listScenariosByProject } from "@/lib/db/scenarios";
@@ -73,6 +73,13 @@ export default async function ChiTietDuAnPage({ params }: Props) {
             <p className="mt-1 font-mono text-sm text-gray-500">{project.code}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href={`/du-an/${project.id}/tong-quan`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </Link>
             <Link
               href={`/du-an/${project.id}/sua`}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"

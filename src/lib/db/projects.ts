@@ -56,3 +56,15 @@ export async function updateProject(id: string, data: ProjectFormData) {
 export async function deleteProject(id: string) {
   return prisma.project.delete({ where: { id } });
 }
+
+export async function getProjectWithKPIs(id: string) {
+  return prisma.project.findUnique({
+    where: { id },
+    include: {
+      scenarios: {
+        include: { kpiSnapshot: true },
+        orderBy: [{ isBase: "desc" }, { createdAt: "asc" }],
+      },
+    },
+  });
+}
