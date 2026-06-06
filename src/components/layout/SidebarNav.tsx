@@ -13,6 +13,7 @@ import {
   MapPin,
   Settings,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 
@@ -67,6 +68,7 @@ function getActiveKey(pathname: string, { projectId, scenarioId }: Context): str
   if (projectId) {
     if (pathname === `/du-an/${projectId}/tong-quan`) return "tong-quan";
     if (pathname.startsWith(`/du-an/${projectId}/kich-ban`)) return "kich-ban";
+    if (pathname.startsWith(`/du-an/${projectId}/thanh-vien`)) return "thanh-vien";
     return "du-an"; // /du-an/{id}, /du-an/{id}/sua
   }
 
@@ -198,6 +200,20 @@ export default function SidebarNav() {
   return (
     <nav className="flex flex-1 flex-col justify-between overflow-y-auto px-3 py-4">
       <div className="space-y-5">
+        {ctx.projectId && (
+          <div>
+            <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Dự án
+            </p>
+            <div className="space-y-0.5">
+              <NavLink
+                def={{ key: "thanh-vien", label: "Thành viên", icon: Users }}
+                href={`/du-an/${ctx.projectId}/thanh-vien`}
+                isActive={activeKey === "thanh-vien"}
+              />
+            </div>
+          </div>
+        )}
         {NAV_GROUPS.map((group, index) => (
           <div key={index}>
             {group.label && (
