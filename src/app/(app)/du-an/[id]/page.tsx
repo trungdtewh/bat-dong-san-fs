@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, GitBranch, LayoutDashboard, Pencil, Plus, Star } from "lucide-react";
 import type { Metadata } from "next";
 import { getProjectById } from "@/lib/db/projects";
@@ -8,6 +8,8 @@ import ProjectStatusBadge from "@/components/projects/ProjectStatusBadge";
 import DeleteProjectButton from "@/components/projects/DeleteProjectButton";
 import ScenarioTypeBadge from "@/components/scenarios/ScenarioTypeBadge";
 import { PROJECT_TYPE_LABELS } from "@/lib/validations/project";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -47,12 +49,16 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default async function ChiTietDuAnPage({ params }: Props) {
   const { id } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [project, scenarios] = await Promise.all([
     getProjectById(id),
     listScenariosByProject(id),
   ]);
 
   if (!project) notFound();
+  await assertProjectAccess(session.user.id, id).catch(() => notFound());
 
   return (
     <div>

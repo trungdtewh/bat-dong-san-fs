@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
@@ -8,6 +8,8 @@ import LandCostForm, {
   type LandCostInitialData,
 } from "@/components/land-costs/LandCostForm";
 import { updateLandCostAction } from "@/app/(app)/du-an/[id]/kich-ban/[scenarioId]/chi-phi-dat/actions";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 type DecimalLike = { toString(): string };
 
@@ -25,6 +27,8 @@ export const metadata: Metadata = {
 
 export default async function SuaChiPhiDatPage({ params }: Props) {
   const { id: projectId, scenarioId, costId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
 
   const [scenario, cost] = await Promise.all([
     getScenarioById(scenarioId),
@@ -33,6 +37,7 @@ export default async function SuaChiPhiDatPage({ params }: Props) {
 
   if (!scenario || scenario.projectId !== projectId) notFound();
   if (!cost || cost.scenarioId !== scenarioId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const initialData: LandCostInitialData = {
     category: cost.category,

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Star, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import type { Metadata } from "next";
@@ -7,6 +7,8 @@ import { PROJECT_TYPE_LABELS, PROJECT_STATUS_LABELS } from "@/lib/validations/pr
 import { SCENARIO_TYPE_LABELS } from "@/lib/validations/scenario";
 import ScenarioTypeBadge from "@/components/scenarios/ScenarioTypeBadge";
 import ProjectStatusBadge from "@/components/projects/ProjectStatusBadge";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -128,8 +130,12 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default async function TongQuanPage({ params }: Props) {
   const { id } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const project = await getProjectWithKPIs(id);
   if (!project) notFound();
+  await assertProjectAccess(session.user.id, id).catch(() => notFound());
 
   const { scenarios } = project;
 

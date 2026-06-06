@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 import { getPhaseById } from "@/lib/db/construction-phases";
 import PhaseForm from "@/components/construction/PhaseForm";
 import { updatePhaseAction } from "@/app/(app)/du-an/[id]/kich-ban/[scenarioId]/chi-phi-xay-dung/actions";
@@ -17,12 +19,16 @@ export const metadata: Metadata = {
 
 export default async function SuaGiaiDoanPage({ params }: Props) {
   const { id: projectId, scenarioId, phaseId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, phase] = await Promise.all([
     getScenarioById(scenarioId),
     getPhaseById(phaseId),
   ]);
   if (!scenario || scenario.projectId !== projectId) notFound();
   if (!phase || phase.scenarioId !== scenarioId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const cancelHref = `/du-an/${projectId}/kich-ban/${scenarioId}/chi-phi-xay-dung`;
   const boundAction = updatePhaseAction.bind(null, phaseId, scenarioId, projectId);

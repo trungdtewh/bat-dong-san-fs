@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById, getBaseScenario } from "@/lib/db/scenarios";
 import ScenarioForm from "@/components/scenarios/ScenarioForm";
 import { updateScenarioAction } from "@/app/(app)/du-an/[id]/kich-ban/actions";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -16,12 +18,16 @@ export const metadata: Metadata = {
 
 export default async function SuaKichBanPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, baseScenario] = await Promise.all([
     getScenarioById(scenarioId),
     getBaseScenario(projectId),
   ]);
 
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const otherBaseExists =
     !!baseScenario && baseScenario.id !== scenarioId;

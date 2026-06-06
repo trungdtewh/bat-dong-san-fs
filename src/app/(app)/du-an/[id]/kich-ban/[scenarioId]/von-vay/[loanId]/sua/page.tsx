@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -6,6 +6,8 @@ import { getScenarioById } from "@/lib/db/scenarios";
 import { getLoanById } from "@/lib/db/loans";
 import LoanForm from "@/components/loan/LoanForm";
 import type { RepaymentMethod, LoanType, LoanStatus } from "@/generated/prisma/client";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 import { updateLoanAction } from "../../actions";
 
 interface Props {
@@ -22,12 +24,16 @@ function toNum(d: { toString(): string } | null | undefined): number {
 
 export default async function SuaKhoanVayPage({ params }: Props) {
   const { id: projectId, scenarioId, loanId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, loan] = await Promise.all([
     getScenarioById(scenarioId),
     getLoanById(loanId),
   ]);
   if (!scenario || scenario.projectId !== projectId) notFound();
   if (!loan || loan.scenarioId !== scenarioId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const baseHref = `/du-an/${projectId}/kich-ban/${scenarioId}/von-vay`;
   const action = updateLoanAction.bind(null, loanId, scenarioId, projectId);

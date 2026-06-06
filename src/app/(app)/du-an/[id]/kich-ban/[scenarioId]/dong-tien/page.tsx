@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { ChevronLeft, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -6,6 +6,8 @@ import { getScenarioById } from "@/lib/db/scenarios";
 import { getCashFlowByScenario, getKPISnapshot } from "@/lib/db/cashflow";
 import { recomputeCashFlowAction } from "./actions";
 import RecomputeButton from "@/components/cashflow/RecomputeButton";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -113,6 +115,8 @@ function Td({
 
 export default async function DongTienPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
 
   const [scenario, entries, kpi] = await Promise.all([
     getScenarioById(scenarioId),
@@ -121,6 +125,7 @@ export default async function DongTienPage({ params }: Props) {
   ]);
 
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const baseHref = `/du-an/${projectId}/kich-ban/${scenarioId}`;
   const action = recomputeCashFlowAction.bind(null, scenarioId, projectId);

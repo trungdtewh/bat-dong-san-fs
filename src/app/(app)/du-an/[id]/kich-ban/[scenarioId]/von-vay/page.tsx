@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Plus, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
@@ -20,6 +20,8 @@ import {
 import type { LoanType, LoanStatus, RepaymentMethod, EquitySourceType } from "@/generated/prisma/client";
 import DeleteLoanButton from "@/components/loan/DeleteLoanButton";
 import DeleteEquityButton from "@/components/equity/DeleteEquityButton";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -41,12 +43,16 @@ function formatVND(n: number): string {
 
 export default async function VonVayPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, loans, equities] = await Promise.all([
     getScenarioById(scenarioId),
     listLoansByScenario(scenarioId),
     listEquityByScenario(scenarioId),
   ]);
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const baseHref = `/du-an/${projectId}/kich-ban/${scenarioId}/von-vay`;
 

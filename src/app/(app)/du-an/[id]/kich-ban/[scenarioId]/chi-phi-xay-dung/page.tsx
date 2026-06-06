@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Plus, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
 import { listPhasesByScenario } from "@/lib/db/construction-phases";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 import { DISTRIBUTION_TYPE_LABELS } from "@/lib/validations/contract-package";
 import { CONSTRUCTION_COST_CATEGORY_LABELS } from "@/lib/validations/construction-cost";
 import type { DistributionType, ConstructionCostCategory } from "@/generated/prisma/client";
@@ -32,6 +34,8 @@ function sumDecimals(items: { totalAmount: DecimalLike }[]): number {
 
 export default async function ChiPhiXayDungPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
 
   const [scenario, phases] = await Promise.all([
     getScenarioById(scenarioId),
@@ -39,6 +43,7 @@ export default async function ChiPhiXayDungPage({ params }: Props) {
   ]);
 
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const baseHref = `/du-an/${projectId}/kich-ban/${scenarioId}/chi-phi-xay-dung`;
 

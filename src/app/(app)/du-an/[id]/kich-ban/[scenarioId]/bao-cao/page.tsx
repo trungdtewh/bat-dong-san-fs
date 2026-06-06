@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
@@ -9,6 +9,8 @@ import { LAND_COST_CATEGORY_LABELS } from "@/lib/validations/land-cost";
 import { REVENUE_PRODUCT_TYPE_LABELS } from "@/lib/validations/product-group";
 import { LOAN_TYPE_LABELS, REPAYMENT_METHOD_LABELS } from "@/lib/validations/loan";
 import { EQUITY_SOURCE_TYPE_LABELS } from "@/lib/validations/equity-contribution";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -85,8 +87,12 @@ function KpiGrid({ items }: { items: { label: string; value: string; sub?: strin
 
 export default async function BaoCaoPage({ params }: Props) {
   const { id, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const data = await getScenarioFullReport(scenarioId);
-  if (!data) notFound();
+  if (!data || data.projectId !== id) notFound();
+  await assertProjectAccess(session.user.id, id).catch(() => notFound());
 
   const kpi = data.kpiSnapshot;
   const entries = data.cashFlowEntries;

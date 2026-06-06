@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -6,6 +6,8 @@ import { getScenarioById } from "@/lib/db/scenarios";
 import { getEquityById } from "@/lib/db/equity-contributions";
 import EquityForm from "@/components/equity/EquityForm";
 import type { EquitySourceType } from "@/generated/prisma/client";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 import { updateEquityAction } from "../../actions";
 
 interface Props {
@@ -22,12 +24,16 @@ function toNum(d: { toString(): string } | null | undefined): number {
 
 export default async function SuaGopVonPage({ params }: Props) {
   const { id: projectId, scenarioId, contributionId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, equity] = await Promise.all([
     getScenarioById(scenarioId),
     getEquityById(contributionId),
   ]);
   if (!scenario || scenario.projectId !== projectId) notFound();
   if (!equity || equity.scenarioId !== scenarioId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const baseHref = `/du-an/${projectId}/kich-ban/${scenarioId}/von-vay`;
   const action = updateEquityAction.bind(null, contributionId, scenarioId, projectId);

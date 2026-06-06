@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Plus, Pencil } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
@@ -13,6 +13,8 @@ import { computeBatchUnitPrice, computeAbsorptionMonths } from "@/lib/finance/re
 import type { CollectionInstallment } from "@/lib/validations/product-batch";
 import DeleteProductGroupButton from "@/components/revenue/DeleteProductGroupButton";
 import DeleteProductBatchButton from "@/components/revenue/DeleteProductBatchButton";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -39,11 +41,15 @@ function formatRate(r: number): string {
 
 export default async function DoanhThuPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, groups] = await Promise.all([
     getScenarioById(scenarioId),
     listGroupsByScenario(scenarioId),
   ]);
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const baseHref = `/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`;
 

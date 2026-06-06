@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Pencil, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
 import { getAssumptionByScenarioId } from "@/lib/db/assumptions";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -52,6 +54,8 @@ function GroupCard({
 
 export default async function GiaDinhPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
 
   const [scenario, assumption] = await Promise.all([
     getScenarioById(scenarioId),
@@ -59,6 +63,7 @@ export default async function GiaDinhPage({ params }: Props) {
   ]);
 
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const editHref = `/du-an/${projectId}/kich-ban/${scenarioId}/gia-dinh/chinh-sua`;
 

@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getProjectById } from "@/lib/db/projects";
 import ProjectForm from "@/components/projects/ProjectForm";
 import { updateProjectAction } from "@/app/(app)/du-an/actions";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -16,9 +18,12 @@ export const metadata: Metadata = {
 
 export default async function SuaDuAnPage({ params }: Props) {
   const { id } = await params;
-  const project = await getProjectById(id);
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
 
+  const project = await getProjectById(id);
   if (!project) notFound();
+  await assertProjectAccess(session.user.id, id).catch(() => notFound());
 
   const boundAction = updateProjectAction.bind(null, project.id);
 
@@ -45,6 +50,7 @@ export default async function SuaDuAnPage({ params }: Props) {
           province: project.province,
           status: project.status,
           totalArea: project.totalArea,
+          buildableArea: project.buildableArea,
           grossFloorArea: project.grossFloorArea,
           commercialArea: project.commercialArea,
         }}

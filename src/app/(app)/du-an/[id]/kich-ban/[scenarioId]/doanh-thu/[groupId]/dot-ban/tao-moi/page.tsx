@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
@@ -8,6 +8,8 @@ import { listGroupsByScenario } from "@/lib/db/product-groups";
 import ProductBatchForm, { type BatchFormGroupContext } from "@/components/revenue/ProductBatchForm";
 import { createBatchAction } from "@/app/(app)/du-an/[id]/kich-ban/[scenarioId]/doanh-thu/actions";
 import type { PriceUnit } from "@/generated/prisma/client";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 type DecimalLike = { toString(): string };
 
@@ -21,6 +23,9 @@ export const metadata: Metadata = {
 
 export default async function TaoDotBanPage({ params }: Props) {
   const { id: projectId, scenarioId, groupId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, group, allGroups] = await Promise.all([
     getScenarioById(scenarioId),
     getGroupById(groupId),
@@ -28,6 +33,7 @@ export default async function TaoDotBanPage({ params }: Props) {
   ]);
   if (!scenario || scenario.projectId !== projectId) notFound();
   if (!group || group.scenarioId !== scenarioId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const cancelHref = `/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`;
   const boundAction = createBatchAction.bind(null, groupId, scenarioId, projectId);

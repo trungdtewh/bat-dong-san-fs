@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
 import { getGroupById } from "@/lib/db/product-groups";
 import ProductGroupForm, { type GroupInitialData } from "@/components/revenue/ProductGroupForm";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 import { updateGroupAction } from "@/app/(app)/du-an/[id]/kich-ban/[scenarioId]/doanh-thu/actions";
 
 type DecimalLike = { toString(): string };
@@ -19,12 +21,16 @@ export const metadata: Metadata = {
 
 export default async function SuaNhomPage({ params }: Props) {
   const { id: projectId, scenarioId, groupId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, group] = await Promise.all([
     getScenarioById(scenarioId),
     getGroupById(groupId),
   ]);
   if (!scenario || scenario.projectId !== projectId) notFound();
   if (!group || group.scenarioId !== scenarioId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const cancelHref = `/du-an/${projectId}/kich-ban/${scenarioId}/doanh-thu`;
   const boundAction = updateGroupAction.bind(null, groupId, scenarioId, projectId);

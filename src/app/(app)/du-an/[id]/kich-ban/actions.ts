@@ -105,7 +105,7 @@ export async function deleteScenarioAction(
   if (!session) redirect("/dang-nhap");
 
   try {
-    await assertScenarioAccess(session.user.id, id, "EDITOR");
+    await assertScenarioAccess(session.user.id, id, "OWNER");
     await deleteScenario(id);
   } catch (err) {
     return handleDbError(err);

@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getProjectById } from "@/lib/db/projects";
 import { getBaseScenario } from "@/lib/db/scenarios";
 import ScenarioForm from "@/components/scenarios/ScenarioForm";
 import { createScenarioAction } from "@/app/(app)/du-an/[id]/kich-ban/actions";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -17,12 +19,16 @@ export const metadata: Metadata = {
 
 export default async function TaoMoiKichBanPage({ params }: Props) {
   const { id } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [project, baseScenario] = await Promise.all([
     getProjectById(id),
     getBaseScenario(id),
   ]);
 
   if (!project) notFound();
+  await assertProjectAccess(session.user.id, id).catch(() => notFound());
 
   const boundAction = createScenarioAction.bind(null, id);
 

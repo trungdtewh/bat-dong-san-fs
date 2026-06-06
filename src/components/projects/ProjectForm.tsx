@@ -16,6 +16,7 @@ interface InitialData {
   province: string;
   status: string;
   totalArea: number;
+  buildableArea?: number | null;
   grossFloorArea?: number | null;
   commercialArea?: number | null;
 }
@@ -144,7 +145,7 @@ export default function ProjectForm({
 
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <h2 className="mb-5 text-sm font-semibold text-gray-700">Thông tin diện tích</h2>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {/* Diện tích đất */}
           <div>
             <label htmlFor="totalArea" className="block text-sm font-medium text-gray-700">
@@ -161,6 +162,24 @@ export default function ProjectForm({
               className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <FieldError errors={state?.errors} name="totalArea" />
+          </div>
+
+          {/* Diện tích xây dựng */}
+          <div>
+            <label htmlFor="buildableArea" className="block text-sm font-medium text-gray-700">
+              Diện tích xây dựng (m²)
+            </label>
+            <input
+              id="buildableArea"
+              name="buildableArea"
+              type="number"
+              step="0.01"
+              min="0"
+              defaultValue={initialData?.buildableArea ?? undefined}
+              placeholder="0"
+              className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <FieldError errors={state?.errors} name="buildableArea" />
           </div>
 
           {/* Tổng diện tích sàn */}

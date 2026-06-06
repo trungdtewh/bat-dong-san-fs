@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
 import { listLandCostsByScenario } from "@/lib/db/land-costs";
 import LandCostTable from "@/components/land-costs/LandCostTable";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -16,6 +18,8 @@ export const metadata: Metadata = {
 
 export default async function ChiPhiDatPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
 
   const [scenario, costs] = await Promise.all([
     getScenarioById(scenarioId),
@@ -23,6 +27,7 @@ export default async function ChiPhiDatPage({ params }: Props) {
   ]);
 
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const createHref = `/du-an/${projectId}/kich-ban/${scenarioId}/chi-phi-dat/tao-moi`;
 

@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 import { getPhaseById } from "@/lib/db/construction-phases";
 import { getPackageById } from "@/lib/db/contract-packages";
 import PackageForm, { type PackageInitialData } from "@/components/construction/PackageForm";
@@ -20,6 +22,9 @@ export const metadata: Metadata = {
 
 export default async function SuaGoiThauPage({ params }: Props) {
   const { id: projectId, scenarioId, phaseId, packageId } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [scenario, phase, pkg] = await Promise.all([
     getScenarioById(scenarioId),
     getPhaseById(phaseId),
@@ -28,6 +33,7 @@ export default async function SuaGoiThauPage({ params }: Props) {
   if (!scenario || scenario.projectId !== projectId) notFound();
   if (!phase || phase.scenarioId !== scenarioId) notFound();
   if (!pkg || pkg.phaseId !== phaseId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   const cancelHref = `/du-an/${projectId}/kich-ban/${scenarioId}/chi-phi-xay-dung`;
   const boundAction = updatePackageAction.bind(null, packageId, phaseId, scenarioId, projectId);

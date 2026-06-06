@@ -25,6 +25,7 @@ function parseFormData(formData: FormData) {
     province: formData.get("province"),
     status: formData.get("status"),
     totalArea: formData.get("totalArea"),
+    buildableArea: formData.get("buildableArea"),
     grossFloorArea: formData.get("grossFloorArea"),
     commercialArea: formData.get("commercialArea"),
   };

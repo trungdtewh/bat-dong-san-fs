@@ -70,6 +70,7 @@ export const projectSchema = z.object({
   totalArea: z.coerce
     .number()
     .positive("Diện tích đất phải lớn hơn 0"),
+  buildableArea: optionalPositiveNumber,
   grossFloorArea: optionalPositiveNumber,
   commercialArea: optionalPositiveNumber,
 });

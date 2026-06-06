@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { getProjectById } from "@/lib/db/projects";
 import { listScenariosByProject } from "@/lib/db/scenarios";
 import ScenarioTable from "@/components/scenarios/ScenarioTable";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -22,12 +24,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function KichBanPage({ params }: Props) {
   const { id } = await params;
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
+
   const [project, scenarios] = await Promise.all([
     getProjectById(id),
     listScenariosByProject(id),
   ]);
 
   if (!project) notFound();
+  await assertProjectAccess(session.user.id, id).catch(() => notFound());
 
   return (
     <div>

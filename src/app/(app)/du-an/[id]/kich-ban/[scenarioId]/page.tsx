@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft, Pencil, Star } from "lucide-react";
 import type { Metadata } from "next";
 import { getScenarioById } from "@/lib/db/scenarios";
 import ScenarioTypeBadge from "@/components/scenarios/ScenarioTypeBadge";
 import DeleteScenarioButton from "@/components/scenarios/DeleteScenarioButton";
 import CloneScenarioButton from "@/components/scenarios/CloneScenarioButton";
+import { getRequiredSession } from "@/lib/auth/session";
+import { assertProjectAccess } from "@/lib/db/access";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -64,9 +66,12 @@ function InfoRow({
 
 export default async function ChiTietKichBanPage({ params }: Props) {
   const { id: projectId, scenarioId } = await params;
-  const scenario = await getScenarioById(scenarioId);
+  const session = await getRequiredSession().catch(() => null);
+  if (!session) redirect("/dang-nhap");
 
+  const scenario = await getScenarioById(scenarioId);
   if (!scenario || scenario.projectId !== projectId) notFound();
+  await assertProjectAccess(session.user.id, projectId).catch(() => notFound());
 
   return (
     <div>
