@@ -11,6 +11,7 @@ import { LOAN_TYPE_LABELS, REPAYMENT_METHOD_LABELS } from "@/lib/validations/loa
 import { EQUITY_SOURCE_TYPE_LABELS } from "@/lib/validations/equity-contribution";
 import { getRequiredSession } from "@/lib/auth/session";
 import { assertProjectAccess } from "@/lib/db/access";
+import ExcelButton from "@/components/cashflow/ExcelButton";
 
 interface Props {
   params: Promise<{ id: string; scenarioId: string }>;
@@ -172,7 +173,10 @@ export default async function BaoCaoPage({ params }: Props) {
           <ChevronLeft className="h-4 w-4" />
           Quay lại kịch bản
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <ExcelButton scenarioId={scenarioId} />
+          <PrintButton />
+        </div>
       </div>
 
       {/* ═══ TIÊU ĐỀ BÁO CÁO ═════════════════════════════════════════════════ */}
